@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>会員証</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+  body {
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 32px 16px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 20px;
+    max-width: 360px;
+    margin: 0 auto;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+  h1 {
+    font-size: 15px;
+    color: #666;
+    margin: 0 0 16px;
+    font-weight: normal;
+  }
+  #status {
+    color: #888;
+    font-size: 14px;
+    min-height: 20px;
+  }
+  svg {
+    max-width: 100%;
+    margin-top: 12px;
+  }
+  .member-id {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-top: 8px;
+    color: #333;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>会員証</h1>
+    <div id="status">読み込み中...</div>
+    <svg id="barcode"></svg>
+    <div class="member-id" id="memberId"></div>
+  </div>
+
+  <script>
+    // LIFF ID（秘密の値ではない）
+    const LIFF_ID = '2012512259-abY3GxNb';
+    // 会員番号を返すGASのウェブアプリ（この画面はGASの外に置く。GASのiframeではLIFFの初期化が終わらないため）
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyuHNnkG6VnXpA-PMr4lz0oGVLdlV37tbqzYhjJhy--2x2uxFQbJHtZ5mVYIWHZYIeP/exec';
+
+    async function main() {
+      const statusEl = document.getElementById('status');
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const accessToken = liff.getAccessToken();
+      const res = await fetch(API_URL + '?action=member&accessToken=' + encodeURIComponent(accessToken));
+      const data = await res.json();
+
+      if (data.error === 'not_found') {
+        statusEl.textContent = '会員情報が見つかりませんでした。友だち解除→再追加してお試しください。';
+        return;
+      }
+      if (data.error) {
+        statusEl.textContent = '読み込みに失敗しました（' + data.error + '）。';
+        return;
+      }
+
+      statusEl.textContent = 'お会計時にこの画面をご提示ください';
+      document.getElementById('memberId').textContent = data.memberId;
+      JsBarcode('#barcode', data.memberId, { format: 'CODE128', displayValue: false, height: 70 });
+    }
+
+    main().catch(function (err) {
+      document.getElementById('status').textContent = 'エラーが発生しました: ' + err.message;
+    });
+  </script>
+</body>
+</html>
